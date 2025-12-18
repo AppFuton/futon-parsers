@@ -7,8 +7,8 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-group = "org.koitharu"
-version = "1.0"
+group = "io.github.landwarderer"
+version = "2.0.0"
 
 tasks.test {
     useJUnitPlatform()
@@ -24,7 +24,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
             "-opt-in=kotlin.RequiresOptIn",
             "-opt-in=kotlin.contracts.ExperimentalContracts",
             "-opt-in=kotlinx.coroutines.ExperimentalCoroutinesApi",
-            "-opt-in=org.koitharu.kotatsu.parsers.InternalParsersApi",
+            "-opt-in=io.github.landwarderer.futon.parsers.InternalParsersApi",
         )
     }
 }
@@ -51,7 +51,7 @@ dependencies {
     implementation(libs.androidx.collection)
     api(libs.jsoup)
 
-    ksp(project(":kotatsu-parsers-ksp"))
+    ksp(project(":futon-parsers-ksp"))
 
     testImplementation(libs.junit.api)
     testImplementation(libs.junit.engine)

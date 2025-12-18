@@ -1,0 +1,12 @@
+package io.github.landwarderer.futon.parsers.site.keyoapp.fr
+
+import io.github.landwarderer.futon.parsers.Broken
+import io.github.landwarderer.futon.parsers.MangaLoaderContext
+import io.github.landwarderer.futon.parsers.MangaSourceParser
+import io.github.landwarderer.futon.parsers.model.MangaParserSource
+import io.github.landwarderer.futon.parsers.site.keyoapp.KeyoappParser
+
+@Broken
+@MangaSourceParser("STARBOUNDSCANS", "StarboundScans", "fr")
+internal class StarboundScans(context: MangaLoaderContext) :
+	KeyoappParser(context, MangaParserSource.STARBOUNDSCANS, "starboundscans.com")

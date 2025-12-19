@@ -59,7 +59,6 @@ JVM and Android applications.
 ## Projects that use the library
 
 - [Futon](https://github.com/AppFuton/Futon)
-- [Doki](https://github.com/DokiTeam/Doki)
 
 ## Contribution
 

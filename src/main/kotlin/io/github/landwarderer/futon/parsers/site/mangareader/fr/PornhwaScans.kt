@@ -5,10 +5,11 @@ import io.github.landwarderer.futon.parsers.MangaLoaderContext
 import io.github.landwarderer.futon.parsers.MangaSourceParser
 import io.github.landwarderer.futon.parsers.model.MangaListFilterCapabilities
 import io.github.landwarderer.futon.parsers.model.MangaParserSource
+import io.github.landwarderer.futon.parsers.model.ContentType
 import io.github.landwarderer.futon.parsers.site.mangareader.MangaReaderParser
 
 @Broken
-@MangaSourceParser("PORNHWASCANS", "PornhwaScans", "fr")
+@MangaSourceParser("PORNHWASCANS", "PornhwaScans", "fr", type = ContentType.HENTAI)
 internal class PornhwaScans(context: MangaLoaderContext) :
 	MangaReaderParser(context, MangaParserSource.PORNHWASCANS, "pornhwascans.fr", pageSize = 24, searchPageSize = 10) {
 	override val filterCapabilities: MangaListFilterCapabilities

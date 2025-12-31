@@ -8,7 +8,7 @@ import io.github.landwarderer.futon.parsers.model.*
 import io.github.landwarderer.futon.parsers.util.*
 import java.util.*
 
-@MangaSourceParser("MISSKON", "MissKon", type = ContentType.OTHER)
+@MangaSourceParser("MISSKON", "MissKon", type = ContentType.HENTAI)
 internal class Misskon(context: MangaLoaderContext) : PagedMangaParser(context, MangaParserSource.MISSKON, 24) {
 
     override val configKeyDomain = ConfigKey.Domain("misskon.com")

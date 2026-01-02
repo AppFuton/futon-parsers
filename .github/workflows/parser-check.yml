@@ -1,0 +1,221 @@
+name: Comprehensive Parser Health Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      timeout:
+        description: 'HTTP request timeout in seconds'
+        required: false
+        default: '5'
+      include_domains:
+        description: 'Also check domain availability'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  parser-health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository 🌏
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Set up environment 🔧
+        uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Gradle 📦
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+
+      - name: Compile all parsers 🚀
+        run: ./gradlew compileKotlin
+        continue-on-error: true
+
+      - name: Extract and validate parser metadata 📊
+        run: |
+          #!/bin/bash
+          
+          PARSER_DIR="src/main/kotlin/io/github/landwarderer/futon/parsers/site"
+          REPORT_FILE="parser_health_report.txt"
+          
+          echo "========== PARSER HEALTH REPORT ==========" > "$REPORT_FILE"
+          echo "Generated: $(date)" >> "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
+          
+          # Count total parsers
+          TOTAL_PARSERS=$(find "$PARSER_DIR" -name "*.kt" -type f | wc -l)
+          echo "📈 Total Parser Files: $TOTAL_PARSERS" >> "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
+          
+          # Count parsers by template
+          echo "📁 Parsers by Template:" >> "$REPORT_FILE"
+          for template_dir in "$PARSER_DIR"/*/; do
+            template=$(basename "$template_dir")
+            count=$(find "$template_dir" -name "*.kt" -type f | wc -l)
+            printf "  %-20s %4d parsers\n" "$template" "$count" >> "$REPORT_FILE"
+          done | sort -k2 -rn
+          echo "" >> "$REPORT_FILE"
+          
+          # Find broken parsers (marked with @Broken annotation)
+          echo "⚠️  Broken Parsers (marked with @Broken):" >> "$REPORT_FILE"
+          BROKEN_COUNT=$(grep -r "@Broken" "$PARSER_DIR" --include="*.kt" | wc -l)
+          echo "  Total: $BROKEN_COUNT" >> "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
+          
+          # Extract broken parsers with reasons
+          echo "  Details:" >> "$REPORT_FILE"
+          grep -r "@Broken" "$PARSER_DIR" --include="*.kt" -B 1 | \
+          grep -E "^.*\.kt.*@Broken|^--" | \
+          awk 'NF {print "    " $0}' >> "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
+          
+          # Find parsers without proper domain config
+          echo "📋 Parser Configuration Analysis:" >> "$REPORT_FILE"
+          PARSER_COUNT=$(find "$PARSER_DIR" -name "*.kt" -exec grep -l "class.*Parser" {} \; | wc -l)
+          DOMAIN_CONFIG=$(grep -r "ConfigKey.Domain" "$PARSER_DIR" --include="*.kt" | wc -l)
+          echo "  Parser classes: $PARSER_COUNT" >> "$REPORT_FILE"
+          echo "  With domain config: $DOMAIN_CONFIG" >> "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
+          
+          # Extract unique domains
+          echo "🌐 Unique Domains Found:" >> "$REPORT_FILE"
+          UNIQUE_DOMAINS=$(grep -r "ConfigKey.Domain" "$PARSER_DIR" --include="*.kt" | \
+          grep -oP 'Domain\("\K[^"]+' | sort -u | wc -l)
+          echo "  Total: $UNIQUE_DOMAINS" >> "$REPORT_FILE"
+          echo "" >> "$REPORT_FILE"
+          
+          # Language/Region distribution
+          echo "🗣️  Language Distribution:" >> "$REPORT_FILE"
+          for lang_dir in "$PARSER_DIR"/*/; do
+            lang=$(basename "$lang_dir")
+            # Skip template directories
+            if [[ ! "$lang" =~ ^(madara|mangareader|zeistmanga|onemanaga|wpcomics|mmrcms|keyoapp|hotcomics|galleryadults|foolslide|onemanga|madtheme|pizzareader|scan|mangabox|manga18|liliana|heancms|cupfox|zmanga|iken|guya|gattsu|fmreader|animebootstrap|heancmsalt|gallery|fuzzydoodle|vmp|likemanga|sinmh|otakusanctuary|nepnep|mangaworld|mangadventure)$ ]]; then
+              count=$(find "$lang_dir" -name "*.kt" -type f | wc -l)
+              if [ "$count" -gt 0 ]; then
+                printf "  %-5s %4d parsers\n" "$lang" "$count" >> "$REPORT_FILE"
+              fi
+            fi
+          done | sort -k2 -rn
+          
+          echo "" >> "$REPORT_FILE"
+          echo "========================================" >> "$REPORT_FILE"
+          
+          cat "$REPORT_FILE"
+
+      - name: Check domain availability 🌍
+        if: ${{ inputs.include_domains }}
+        run: |
+          #!/bin/bash
+          
+          PARSER_DIR="src/main/kotlin/io/github/landwarderer/futon/parsers/site"
+          TIMEOUT="${{ inputs.timeout }}"
+          DOMAIN_REPORT="domain_health_report.txt"
+          
+          echo "========== DOMAIN HEALTH REPORT ==========" > "$DOMAIN_REPORT"
+          echo "Generated: $(date)" >> "$DOMAIN_REPORT"
+          echo "Timeout: ${TIMEOUT}s" >> "$DOMAIN_REPORT"
+          echo "" >> "$DOMAIN_REPORT"
+          
+          # Extract domains
+          temp_domains=$(mktemp)
+          grep -r "ConfigKey.Domain" "$PARSER_DIR" --include="*.kt" | \
+          grep -oP 'Domain\("\K[^"]+' | \
+          grep -v 'localhost\|127.0.0.1\|example.com' | \
+          sort -u > "$temp_domains"
+          
+          TOTAL=$(wc -l < "$temp_domains")
+          echo "Total unique domains: $TOTAL" >> "$DOMAIN_REPORT"
+          echo "" >> "$DOMAIN_REPORT"
+          
+          # Check domains
+          temp_results=$(mktemp)
+          counter=0
+          while IFS= read -r domain; do
+            ((counter++))
+            [[ -z "$domain" ]] && continue
+            
+            if [[ ! "$domain" =~ ^https?:// ]]; then
+              domain="https://$domain"
+            fi
+            domain="${domain%/}"
+            
+            http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" -L "$domain" 2>/dev/null)
+            
+            if [[ -z "$http_code" ]]; then
+              echo "✗ $domain - TIMEOUT/ERROR" >> "$DOMAIN_REPORT"
+              echo "TIMEOUT" >> "$temp_results"
+            elif [[ "$http_code" -ge 200 && "$http_code" -lt 300 ]]; then
+              echo "✓ $domain - $http_code OK" >> "$DOMAIN_REPORT"
+              echo "OK" >> "$temp_results"
+            elif [[ "$http_code" -ge 300 && "$http_code" -lt 400 ]]; then
+              echo "→ $domain - $http_code REDIRECT" >> "$DOMAIN_REPORT"
+              echo "REDIRECT" >> "$temp_results"
+            elif [[ "$http_code" -ge 400 && "$http_code" -lt 500 ]]; then
+              echo "✗ $domain - $http_code CLIENT_ERROR" >> "$DOMAIN_REPORT"
+              echo "CLIENT_ERROR" >> "$temp_results"
+            else
+              echo "✗ $domain - $http_code SERVER_ERROR" >> "$DOMAIN_REPORT"
+              echo "SERVER_ERROR" >> "$temp_results"
+            fi
+            
+            if (( counter % 10 == 0 )); then
+              echo "Progress: $counter/$TOTAL" >&2
+            fi
+          done < "$temp_domains"
+          
+          echo "" >> "$DOMAIN_REPORT"
+          echo "========== SUMMARY ==========" >> "$DOMAIN_REPORT"
+          OK=$(grep -c "^OK$" "$temp_results" 2>/dev/null || echo 0)
+          REDIRECT=$(grep -c "^REDIRECT$" "$temp_results" 2>/dev/null || echo 0)
+          CLIENT_ERROR=$(grep -c "^CLIENT_ERROR$" "$temp_results" 2>/dev/null || echo 0)
+          SERVER_ERROR=$(grep -c "^SERVER_ERROR$" "$temp_results" 2>/dev/null || echo 0)
+          TIMEOUT=$(grep -c "^TIMEOUT$" "$temp_results" 2>/dev/null || echo 0)
+          
+          echo "✓ OK (2xx): $OK" >> "$DOMAIN_REPORT"
+          echo "→ Redirects (3xx): $REDIRECT" >> "$DOMAIN_REPORT"
+          echo "✗ Client Errors (4xx): $CLIENT_ERROR" >> "$DOMAIN_REPORT"
+          echo "✗ Server Errors (5xx): $SERVER_ERROR" >> "$DOMAIN_REPORT"
+          echo "✗ Timeout/Error: $TIMEOUT" >> "$DOMAIN_REPORT"
+          
+          if [[ $TOTAL -gt 0 ]]; then
+            SUCCESS_RATE=$((OK * 100 / TOTAL))
+            echo "Success Rate: ${SUCCESS_RATE}%" >> "$DOMAIN_REPORT"
+          fi
+          
+          cat "$DOMAIN_REPORT"
+          rm "$temp_domains" "$temp_results"
+
+      - name: Generate combined report 📝
+        run: |
+          cat parser_health_report.txt > combined_report.txt
+          echo "" >> combined_report.txt
+          [ -f domain_health_report.txt ] && cat domain_health_report.txt >> combined_report.txt
+          cat combined_report.txt
+
+      - name: Upload reports 📤
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: parser-health-reports
+          path: |
+            parser_health_report.txt
+            domain_health_report.txt
+            combined_report.txt
+          retention-days: 30
+
+      - name: Comment on workflow run 💬
+        if: always()
+        run: |
+          echo "## 🏥 Parser Health Check Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Summary" >> $GITHUB_STEP_SUMMARY
+          head -20 parser_health_report.txt >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f domain_health_report.txt ]; then
+            echo "### Domain Status" >> $GITHUB_STEP_SUMMARY
+            tail -10 domain_health_report.txt >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 [Full reports available in artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY

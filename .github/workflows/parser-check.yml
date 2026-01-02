@@ -171,13 +171,13 @@ jobs:
           REDIRECT=$(grep -c "^REDIRECT$" "$temp_results" 2>/dev/null || echo 0)
           CLIENT_ERROR=$(grep -c "^CLIENT_ERROR$" "$temp_results" 2>/dev/null || echo 0)
           SERVER_ERROR=$(grep -c "^SERVER_ERROR$" "$temp_results" 2>/dev/null || echo 0)
-          TIMEOUT=$(grep -c "^TIMEOUT$" "$temp_results" 2>/dev/null || echo 0)
+          TIMEOUT_COUNT=$(grep -c "^TIMEOUT$" "$temp_results" 2>/dev/null || echo 0)
           
           echo "✓ OK (2xx): $OK" >> "$DOMAIN_REPORT"
           echo "→ Redirects (3xx): $REDIRECT" >> "$DOMAIN_REPORT"
           echo "✗ Client Errors (4xx): $CLIENT_ERROR" >> "$DOMAIN_REPORT"
           echo "✗ Server Errors (5xx): $SERVER_ERROR" >> "$DOMAIN_REPORT"
-          echo "✗ Timeout/Error: $TIMEOUT" >> "$DOMAIN_REPORT"
+          echo "✗ Timeout/Error: $TIMEOUT_COUNT" >> "$DOMAIN_REPORT"
           
           if [[ $TOTAL -gt 0 ]]; then
             SUCCESS_RATE=$((OK * 100 / TOTAL))

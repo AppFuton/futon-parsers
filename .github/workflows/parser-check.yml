@@ -108,6 +108,7 @@ jobs:
         if: ${{ inputs.include_domains }}
         run: |
           #!/bin/bash
+          set +e
           
           PARSER_DIR="src/main/kotlin/io/github/landwarderer/futon/parsers/site"
           TIMEOUT="${{ inputs.timeout }}"
@@ -120,14 +121,20 @@ jobs:
           
           # Extract domains
           temp_domains=$(mktemp)
-          grep -r "ConfigKey.Domain" "$PARSER_DIR" --include="*.kt" | \
+          grep -r "ConfigKey.Domain" "$PARSER_DIR" --include="*.kt" 2>/dev/null | \
           grep -oP 'Domain\("\K[^"]+' | \
           grep -v 'localhost\|127.0.0.1\|example.com' | \
-          sort -u > "$temp_domains"
+          sort -u > "$temp_domains" 2>/dev/null || true
           
-          TOTAL=$(wc -l < "$temp_domains")
+          TOTAL=$(wc -l < "$temp_domains" 2>/dev/null || echo 0)
           echo "Total unique domains: $TOTAL" >> "$DOMAIN_REPORT"
           echo "" >> "$DOMAIN_REPORT"
+          
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "No domains found" >> "$DOMAIN_REPORT"
+            cat "$DOMAIN_REPORT"
+            exit 0
+          fi
           
           # Check domains
           temp_results=$(mktemp)
@@ -141,9 +148,9 @@ jobs:
             fi
             domain="${domain%/}"
             
-            http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" -L "$domain" 2>/dev/null)
+            http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" -L "$domain" 2>/dev/null || echo "000")
             
-            if [[ -z "$http_code" ]]; then
+            if [[ "$http_code" == "000" || -z "$http_code" ]]; then
               echo "✗ $domain - TIMEOUT/ERROR" >> "$DOMAIN_REPORT"
               echo "TIMEOUT" >> "$temp_results"
             elif [[ "$http_code" -ge 200 && "$http_code" -lt 300 ]]; then
@@ -185,7 +192,8 @@ jobs:
           fi
           
           cat "$DOMAIN_REPORT"
-          rm "$temp_domains" "$temp_results"
+          rm -f "$temp_domains" "$temp_results"
+          exit 0
 
       - name: Generate combined report 📝
         run: |

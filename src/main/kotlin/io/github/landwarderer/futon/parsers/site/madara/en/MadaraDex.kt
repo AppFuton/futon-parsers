@@ -1,8 +1,5 @@
 package io.github.landwarderer.futon.parsers.site.madara.en
 
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.Interceptor
-import okhttp3.Response
 import io.github.landwarderer.futon.parsers.MangaLoaderContext
 import io.github.landwarderer.futon.parsers.MangaSourceParser
 import io.github.landwarderer.futon.parsers.config.ConfigKey
@@ -14,8 +11,6 @@ import io.github.landwarderer.futon.parsers.model.MangaParserSource
 import io.github.landwarderer.futon.parsers.network.UserAgents
 import io.github.landwarderer.futon.parsers.site.madara.MadaraParser
 import io.github.landwarderer.futon.parsers.util.*
-
-private const val F_URL = "fullUrl="
 
 @MangaSourceParser("MADARADEX", "MadaraDex", "en", ContentType.HENTAI)
 internal class MadaraDex(context: MangaLoaderContext) :
@@ -32,6 +27,7 @@ internal class MadaraDex(context: MangaLoaderContext) :
 
     override fun getRequestHeaders() = super.getRequestHeaders().newBuilder()
         .set("User-Agent", UserAgents.CHROME_DESKTOP)
+        .set("referer", "https://madaradex.org/")
         .build()
 
     override val authUrl: String
@@ -50,41 +46,28 @@ internal class MadaraDex(context: MangaLoaderContext) :
     override suspend fun getPages(chapter: MangaChapter): List<MangaPage> {
         val fullUrl = chapter.url.toAbsoluteUrl(domain)
         val doc = webClient.httpGet(fullUrl).parseHtml()
-        val root = doc.body().selectFirst(selectBodyPage)
-            ?: throw ParseException("No image found, try to log in", fullUrl)
-
-        return root.select(selectPage).flatMap { div ->
-            div.selectOrThrow("img").map { img ->
-                val fragUrl = img.requireSrc().toRelativeUrl(domain).toHttpUrl().newBuilder()
-                    .fragment(F_URL + fullUrl)
-                    .build()
-                val cleanUrl = fragUrl.newBuilder().fragment(null).build()
-                MangaPage(
-                    id = generateUid(cleanUrl.toString()),
-                    url = fragUrl.toString(),
-                    preview = null,
-                    source = source,
-                )
+        
+        val images = doc.select("div.page-break img")
+        
+        if (images.isEmpty()) {
+            throw ParseException("No images found, try to log in", fullUrl)
+        }
+        
+        return images.mapNotNull { img ->
+            val rawUrl = img.attr("data-src").ifBlank { img.attr("src") }.trim()
+            
+            if (rawUrl.isEmpty()) {
+                return@mapNotNull null
             }
+            
+            val cleanUrl = rawUrl.toRelativeUrl(domain).substringBefore('#')
+            
+            MangaPage(
+                id = generateUid(cleanUrl),
+                url = cleanUrl,
+                preview = null,
+                source = source,
+            )
         }
     }
-
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val request = chain.request()
-        val url = request.url
-        val fullUrl = url.fragment?.substringAfter(F_URL, "")
-        return if (!fullUrl.isNullOrEmpty()) {
-            copyCookies()
-            val cleanUrl = url.newBuilder().fragment(null).toString()
-            val newReq = request.newBuilder()
-                .header("Referer", fullUrl)
-                .url(cleanUrl)
-                .build()
-            chain.proceed(newReq)
-        } else {
-            super.intercept(chain)
-        }
-    }
-
-    private fun copyCookies() = context.cookieJar.copyCookies(domain, "cdn.$domain")
 }

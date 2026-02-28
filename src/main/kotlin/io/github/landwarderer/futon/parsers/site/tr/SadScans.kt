@@ -13,7 +13,7 @@ import java.util.*
 internal class SadScans(context: MangaLoaderContext) :
 	SinglePageMangaParser(context, MangaParserSource.SADSCANS) {
 
-	override val configKeyDomain = ConfigKey.Domain("sadscans.com")
+	override val configKeyDomain = ConfigKey.Domain("sadscans.net")
 
 	override fun onCreateConfig(keys: MutableCollection<ConfigKey<*>>) {
 		super.onCreateConfig(keys)
@@ -34,7 +34,7 @@ internal class SadScans(context: MangaLoaderContext) :
 		val url = buildString {
 			append("https://")
 			append(domain)
-			append("/series")
+			append("/seriler")
 			filter.query?.let {
 				append("?search=")
 				append(filter.query.urlEncoded())

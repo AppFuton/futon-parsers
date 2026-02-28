@@ -47,16 +47,14 @@ internal class FlameComics(context: MangaLoaderContext) :
 		val json = webClient.httpGet(url).parseJson().getJSONObject("pageProps").getJSONArray("series")
 
 		val allManga = json.mapJSONNotNull { jo ->
-			parseManga(jo).takeIf { it.tags.matches(filter) }
+			parseManga(jo)?.takeIf { it.tags.matches(filter) }
 		}
 
-		// Filter by search if provided
 		val filteredManga = if (!filter.query.isNullOrEmpty()) {
 			val normalizedQuery = removeSpecialCharsRegex.replace(filter.query.lowercase(), "")
 			allManga.filter { manga ->
 				val titles = mutableListOf(manga.title)
 				titles.addAll(manga.altTitles)
-
 				titles.any { title ->
 					normalizedQuery in removeSpecialCharsRegex.replace(title.lowercase(), "")
 				}
@@ -65,19 +63,21 @@ internal class FlameComics(context: MangaLoaderContext) :
 			allManga
 		}
 
-		return filteredManga
-			.let { list ->
-				when (order) {
-					SortOrder.ALPHABETICAL -> list.sortedBy { it.title }
-					else -> list
-				}
+		return filteredManga.let { list ->
+			when (order) {
+				SortOrder.ALPHABETICAL -> list.sortedBy { it.title }
+				else -> list
 			}
+		}
 	}
 
 	override suspend fun getDetails(manga: Manga): Manga = getDetailsImpl(manga.url.toLong())
 
 	override suspend fun getPages(chapter: MangaChapter): List<MangaPage> {
-		val (seriesId, token) = chapter.url.split('?')
+		val urlParts = chapter.url.split('?', limit = 2)
+		if (urlParts.size < 2) throw IllegalArgumentException("Invalid chapter URL format: ${chapter.url}")
+		val seriesId = urlParts[0]
+		val token = urlParts[1]
 		val url = urlBuilder()
 			.addPathSegment("_next")
 			.addPathSegment("data")
@@ -145,14 +145,22 @@ internal class FlameComics(context: MangaLoaderContext) :
 		return webClient.httpGet(url).parseJson()
 			.getJSONObject("pageProps")
 			.getJSONArray("series")
-			.mapJSONNotNull { it.getStringOrNull("categories") }
+			.mapJSONNotNull { jo ->
+				if (jo.getLongOrNull("series_id") == null) return@mapJSONNotNull null
+				jo.getStringOrNull("categories")
+			}
 			.flatMapTo(ArraySet()) {
-				JSONArray(it).asTypedList<String>().mapToSet { tagName -> tagName.toMangaTag() }
+				try {
+					JSONArray(it).asTypedList<String>().mapToSet { tagName -> tagName.toMangaTag() }
+				} catch (e: Exception) {
+					emptySet()
+				}
 			}
 	}
 
-	private fun parseManga(jo: JSONObject): Manga {
-		val seriesId = jo.getLong("series_id")
+	// Returns null if series_id is missing — item will be silently skipped
+	private fun parseManga(jo: JSONObject): Manga? {
+		val seriesId = jo.getLongOrNull("series_id") ?: return null
 		val cover = jo.getStringOrNull("cover")
 		val author = jo.getStringOrNull("author")
 		return Manga(
@@ -203,7 +211,9 @@ internal class FlameComics(context: MangaLoaderContext) :
 		val json = webClient.httpGet(url).parseJson().getJSONObject("pageProps")
 		val series = json.getJSONObject("series")
 		val chapters = json.getJSONArray("chapters")
-		return parseManga(series).copy(
+		val manga = parseManga(series)
+			?: throw IllegalStateException("Series data is invalid or missing required fields (series_id) for id=$seriesId")
+		return manga.copy(
 			chapters = chapters.mapJSON { jo ->
 				val chapterId = jo.getLong("chapter_id")
 				val number = jo.getFloatOrDefault("chapter", 0f)

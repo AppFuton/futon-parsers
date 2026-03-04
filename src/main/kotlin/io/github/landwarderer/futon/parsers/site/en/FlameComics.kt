@@ -78,6 +78,9 @@ internal class FlameComics(context: MangaLoaderContext) :
 		if (urlParts.size < 2) throw IllegalArgumentException("Invalid chapter URL format: ${chapter.url}")
 		val seriesId = urlParts[0]
 		val token = urlParts[1]
+		if (seriesId.isBlank() || token.isBlank()) {
+			throw IllegalArgumentException("Invalid chapter URL: missing seriesId or token: ${chapter.url}")
+		}
 		val url = urlBuilder()
 			.addPathSegment("_next")
 			.addPathSegment("data")

@@ -351,11 +351,9 @@ internal class MangaReaderToParser(context: MangaLoaderContext) :
 		return result
 	}
 
-@Broken(reason = "Server Error 502 observed by health check", lastCheck = "2026-03-16T17:43:37Z")
 	private class Piece(val x: Int, val y: Int, val w: Int, val h: Int)
 
 	// https://github.com/davidbau/seedrandom
-@Broken(reason = "Server Error 502 observed by health check", lastCheck = "2026-03-16T17:43:37Z")
 	private class SeedRandom(key: String) {
 		private val input = ByteArray(RC4_WIDTH)
 		private val buffer = ByteArray(RC4_WIDTH)

@@ -46,28 +46,32 @@ jobs:
                     PARSER_DIR="src/main/kotlin/io/github/landwarderer/futon/parsers/site"
                     REPORT_FILE="parser_health_report.txt"
 
-                    echo "========== PARSER HEALTH REPORT ==========" > "$REPORT_FILE"
-                    echo "Generated: $(date)" >> "$REPORT_FILE"
-                    echo "" >> "$REPORT_FILE"
+                    {
+                      echo "========== PARSER HEALTH REPORT =========="
+                      echo "Generated: $(date)"
+                      echo ""
 
-                    if [ -d "$PARSER_DIR" ]; then
-                      TOTAL_PARSERS=$(find "$PARSER_DIR" -name "*.kt" -type f | wc -l)
-                      echo "📈 Total Parser Files: $TOTAL_PARSERS" >> "$REPORT_FILE"
-                      echo "" >> "$REPORT_FILE"
+                      if [ -d "$PARSER_DIR" ]; then
+                        TOTAL_PARSERS=$(find "$PARSER_DIR" -name "*.kt" -type f | wc -l)
+                        echo "📈 Total Parser Files: $TOTAL_PARSERS"
+                        echo ""
 
-                      echo "📁 Parsers by Template:" >> "$REPORT_FILE"
-                      for template_dir in "$PARSER_DIR"/*/; do
-                        template=$(basename "$template_dir")
-                        count=$(find "$template_dir" -name "*.kt" -type f | wc -l)
-                        printf "  %-20s %4d parsers\n" "$template" "$count"
-                      done | sort -k2 -rn >> "$REPORT_FILE"
-                      echo "" >> "$REPORT_FILE"
+                        echo "📁 Parsers by Template:"
+                        for template_dir in "$PARSER_DIR"/*/; do
+                          template=$(basename "$template_dir")
+                          count=$(find "$template_dir" -name "*.kt" -type f | wc -l)
+                          printf "  %-20s %4d parsers\n" "$template" "$count"
+                        done | sort -k2 -rn
+                        echo ""
 
-                      echo "⚠️ Broken Parsers (marked with @Broken):" >> "$REPORT_FILE"
-                      BROKEN_COUNT=$(grep -r "@Broken" "$PARSER_DIR" --include="*.kt" | wc -l)
-                      echo "  Total: $BROKEN_COUNT" >> "$REPORT_FILE"
-                      echo "" >> "$REPORT_FILE"
-                    fi
+                        echo "⚠️ Broken Parsers (marked with @Broken):"
+                        BROKEN_COUNT=$(grep -r "@Broken" "$PARSER_DIR" --include="*.kt" | wc -l)
+                        echo "  Total: $BROKEN_COUNT"
+                        echo ""
+                      else
+                        echo "❌ Error: Parser directory not found at $PARSER_DIR"
+                      fi
+                    } > "$REPORT_FILE"
 
                     cat "$REPORT_FILE"
 
@@ -83,69 +87,52 @@ jobs:
                     IMPORT_STMT="import io.github.landwarderer.futon.parsers.Broken"
                     DOMAIN_REPORT="domain_health_report.txt"
 
-                    echo "========== DOMAIN HEALTH REPORT ==========" > "$DOMAIN_REPORT"
-                    echo "Generated: $(date)" >> "$DOMAIN_REPORT"
-                    echo "" >> "$DOMAIN_REPORT"
+                    {
+                      echo "========== DOMAIN HEALTH REPORT =========="
+                      echo "Generated: $(date)"
+                      echo ""
 
-                    if [ -d "$PARSER_DIR" ]; then
-                      find "$PARSER_DIR" -name "*.kt" -type f | while read -r file; do
-                        domain=$(grep -oP 'Domain\("\K[^"]+' "$file" | head -1)
-                        [[ -z "$domain" || "$domain" == "localhost" ]] && continue
+                      if [ -d "$PARSER_DIR" ]; then
+                        find "$PARSER_DIR" -name "*.kt" -type f | while read -r file; do
+                          domain=$(grep -oP 'Domain\("\K[^"]+' "$file" | head -1)
+                          [[ -z "$domain" || "$domain" == "localhost" ]] && continue
 
-                        url="$domain"
-                        [[ ! "$url" =~ ^https?:// ]] && url="https://$url"
+                          url="$domain"
+                          [[ ! "$url" =~ ^https?:// ]] && url="https://$url"
 
-                        status=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" -L "$url" || echo "000")
+                          status=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" -L "$url" || echo "000")
 
-                        if [[ "$status" =~ ^5 || "$status" == "000" ]]; then
-                          if ! grep -q "@Broken" "$file"; then
-                            echo "✗ $domain - $status (Marking Broken)" >> "$DOMAIN_REPORT"
-                            if ! grep -q "$IMPORT_STMT" "$file"; then
-                              sed -i "/package /a \\$IMPORT_STMT" "$file"
-                            fi
-                            REASON="Server Error $status observed by health check"
-                            ANNOTATION="@Broken(reason = \"$REASON\", lastCheck = \"$TIMESTAMP\")"
-                            sed -i "/class /i $ANNOTATION" "$file"
-                            echo "MODIFIED=true" >> $GITHUB_ENV
-                          fi
-                        elif [[ "$status" =~ ^2 ]] && grep -q "@Broken" "$file"; then
-                            echo "✓ $domain - $status (Restoring Live Parser)" >> "$DOMAIN_REPORT"
-                            sed -i '/@Broken/d' "$file"
+                          if [[ "$status" =~ ^5 || "$status" == "000" ]]; then
                             if ! grep -q "@Broken" "$file"; then
-                              sed -i "\|$IMPORT_STMT|d" "$file"
+                              echo "✗ $domain - $status (Marking Broken)"
+                              if ! grep -q "$IMPORT_STMT" "$file"; then
+                                sed -i "/package /a \\$IMPORT_STMT" "$file"
+                              fi
+                              REASON="Server Error $status observed by health check"
+                              ANNOTATION="@Broken(reason = \"$REASON\", lastCheck = \"$TIMESTAMP\")"
+                              sed -i "/class /i $ANNOTATION" "$file"
+                              echo "MODIFIED=true" >> $GITHUB_ENV
                             fi
-                            echo "MODIFIED=true" >> $GITHUB_ENV
-                        fi
-                      done
-                    fi
-
-            -   name: Create Pull Request 🚀
-                if: env.MODIFIED == 'true'
-                uses: peter-evans/create-pull-request@v6
-                with:
-                    token: ${{ secrets.PAT_TOKEN }}
-                    commit-message: "chore: update parser health status"
-                    branch: fix/auto-parser-health-${{ github.run_id }}
-                    delete-branch: true
-                    title: "🤖 Automated Health Check: Sync Parser Status"
-                    body: |
-                        This PR was automatically generated by the weekly health check.
-
-                        - Marks parsers as `@Broken` if they return 5xx or Timeout.
-                        - Removes `@Broken` if they return 2xx.
-                    labels: automated-pr, health-check
+                          elif [[ "$status" =~ ^2 ]] && grep -q "@Broken" "$file"; then
+                              echo "✓ $domain - $status (Restoring Live Parser)"
+                              sed -i '/@Broken/d' "$file"
+                              if ! grep -q "@Broken" "$file"; then
+                                sed -i "\|$IMPORT_STMT|d" "$file"
+                              fi
+                              echo "MODIFIED=true" >> $GITHUB_ENV
+                          fi
+                        done
+                      fi
+                    } > "$DOMAIN_REPORT"
 
             -   name: Generate combined report 📝
                 if: always()
                 run: |
-                    touch combined_report.txt
-                    if [ -f parser_health_report.txt ]; then
-                      cat parser_health_report.txt > combined_report.txt
-                    fi
-                    echo "" >> combined_report.txt
-                    if [ -f domain_health_report.txt ]; then
-                      cat domain_health_report.txt >> combined_report.txt
-                    fi
+                    {
+                      if [ -f parser_health_report.txt ]; then cat parser_health_report.txt; fi
+                      echo -e "\n\n"
+                      if [ -f domain_health_report.txt ]; then cat domain_health_report.txt; fi
+                    } > combined_report.txt
 
             -   name: Upload reports 📤
                 uses: actions/upload-artifact@v4
@@ -157,6 +144,24 @@ jobs:
                         domain_health_report.txt
                         combined_report.txt
                     retention-days: 30
+
+            -   name: Create Pull Request 🚀
+                if: env.MODIFIED == 'true'
+                uses: peter-evans/create-pull-request@v6
+                with:
+                    token: ${{ secrets.PAT_TOKEN }}
+                    commit-message: "chore: update parser health status"
+                    branch: fix/auto-parser-health-${{ github.run_id }}
+                    delete-branch: true
+                    # Exclude the report files from the commit
+                    add-paths: |
+                        src/main/kotlin/**/*.kt
+                    title: "🤖 Automated Health Check: Sync Parser Status"
+                    body: |
+                        This PR updates parser health status based on the weekly check.
+                        - Marked broken parsers (5xx/Timeout)
+                        - Restored live parsers (2xx)
+                    labels: automated-pr, health-check
 
             -   name: Comment on workflow run 💬
                 if: always()

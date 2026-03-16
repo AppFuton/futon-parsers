@@ -1,4 +1,5 @@
 package io.github.landwarderer.futon.parsers.site.all
+import io.github.landwarderer.futon.parsers.Broken
 
 import androidx.collection.MutableIntObjectMap
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -22,6 +23,7 @@ import javax.crypto.spec.SecretKeySpec
 import kotlin.math.min
 
 @MangaSourceParser("MANGAREADERTO", "MangaReader.To")
+@Broken(reason = "Server Error 502 observed by health check", lastCheck = "2026-03-16T17:43:37Z")
 internal class MangaReaderToParser(context: MangaLoaderContext) :
 	PagedMangaParser(context, MangaParserSource.MANGAREADERTO, 16),
 	Interceptor, MangaParserAuthProvider {
@@ -349,9 +351,11 @@ internal class MangaReaderToParser(context: MangaLoaderContext) :
 		return result
 	}
 
+@Broken(reason = "Server Error 502 observed by health check", lastCheck = "2026-03-16T17:43:37Z")
 	private class Piece(val x: Int, val y: Int, val w: Int, val h: Int)
 
 	// https://github.com/davidbau/seedrandom
+@Broken(reason = "Server Error 502 observed by health check", lastCheck = "2026-03-16T17:43:37Z")
 	private class SeedRandom(key: String) {
 		private val input = ByteArray(RC4_WIDTH)
 		private val buffer = ByteArray(RC4_WIDTH)

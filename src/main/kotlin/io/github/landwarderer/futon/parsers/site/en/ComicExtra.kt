@@ -7,11 +7,9 @@ import io.github.landwarderer.futon.parsers.core.PagedMangaParser
 import io.github.landwarderer.futon.parsers.model.*
 import io.github.landwarderer.futon.parsers.network.UserAgents
 import io.github.landwarderer.futon.parsers.util.*
-import io.github.landwarderer.futon.parsers.Broken
 import java.text.SimpleDateFormat
 import java.util.*
 
-@Broken("Original site closed")
 @MangaSourceParser("COMICEXTRA", "ComicExtra", "en", ContentType.COMICS)
 internal class ComicExtra(context: MangaLoaderContext) :
 	PagedMangaParser(context, MangaParserSource.COMICEXTRA, 36) {

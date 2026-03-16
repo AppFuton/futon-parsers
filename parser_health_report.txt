@@ -1,0 +1,58 @@
+========== PARSER HEALTH REPORT ==========
+Generated: Mon Mar 16 17:43:36 UTC 2026
+
+📈 Total Parser Files: 1261
+
+📁 Parsers by Template:
+  madara                549 parsers
+  mangareader           263 parsers
+  zeistmanga             51 parsers
+  en                     31 parsers
+  vi                     28 parsers
+  onemanga               25 parsers
+  ru                     23 parsers
+  all                    20 parsers
+  wpcomics               18 parsers
+  mmrcms                 17 parsers
+  keyoapp                17 parsers
+  hotcomics              14 parsers
+  galleryadults          14 parsers
+  fr                     14 parsers
+  madtheme               12 parsers
+  pt                     10 parsers
+  foolslide              10 parsers
+  pizzareader             9 parsers
+  scan                    8 parsers
+  tr                      7 parsers
+  mangabox                7 parsers
+  manga18                 7 parsers
+  liliana                 7 parsers
+  heancms                 7 parsers
+  cupfox                  7 parsers
+  zmanga                  6 parsers
+  iken                    6 parsers
+  id                      6 parsers
+  guya                    5 parsers
+  gattsu                  5 parsers
+  fmreader                5 parsers
+  animebootstrap          5 parsers
+  heancmsalt              4 parsers
+  gallery                 4 parsers
+  fuzzydoodle             4 parsers
+  es                      4 parsers
+  ar                      4 parsers
+  zh                      3 parsers
+  vmp                     3 parsers
+  uk                      3 parsers
+  sinmh                   3 parsers
+  otakusanctuary          3 parsers
+  nepnep                  3 parsers
+  mangaworld              3 parsers
+  mangadventure           3 parsers
+  likemanga               2 parsers
+  ja                      1 parsers
+  be                      1 parsers
+
+⚠️ Broken Parsers (marked with @Broken):
+  Total: 382
+

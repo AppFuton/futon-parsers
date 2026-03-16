@@ -10,12 +10,10 @@ import io.github.landwarderer.futon.parsers.network.UserAgents
 import io.github.landwarderer.futon.parsers.util.*
 import io.github.landwarderer.futon.parsers.util.json.getStringOrNull
 import io.github.landwarderer.futon.parsers.util.json.mapJSON
-import io.github.landwarderer.futon.parsers.Broken
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
 
-@Broken
 @MangaSourceParser("TEMPLESCANESP", "TempleScanEsp", "es", ContentType.HENTAI)
 internal class TempleScanEsp(context: MangaLoaderContext) :
 	SinglePageMangaParser(context, MangaParserSource.TEMPLESCANESP) {

@@ -4,7 +4,6 @@ import androidx.collection.ArrayMap
 import org.json.JSONArray
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
-import io.github.landwarderer.futon.parsers.Broken
 import io.github.landwarderer.futon.parsers.MangaLoaderContext
 import io.github.landwarderer.futon.parsers.MangaSourceParser
 import io.github.landwarderer.futon.parsers.config.ConfigKey
@@ -17,7 +16,6 @@ import io.github.landwarderer.futon.parsers.util.suspendlazy.suspendLazy
 import java.text.SimpleDateFormat
 import java.util.*
 
-@Broken
 @MangaSourceParser("BLOGTRUYENVN", "BlogTruyen.vn (Unofficial)", "vi")
 internal class BlogTruyenVN(context: MangaLoaderContext) :
 	PagedMangaParser(context, MangaParserSource.BLOGTRUYENVN, pageSize = 20) {

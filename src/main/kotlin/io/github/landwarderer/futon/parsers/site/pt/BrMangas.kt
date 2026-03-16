@@ -1,6 +1,5 @@
 package io.github.landwarderer.futon.parsers.site.pt
 
-import io.github.landwarderer.futon.parsers.Broken
 import io.github.landwarderer.futon.parsers.MangaLoaderContext
 import io.github.landwarderer.futon.parsers.MangaSourceParser
 import io.github.landwarderer.futon.parsers.config.ConfigKey
@@ -10,7 +9,6 @@ import io.github.landwarderer.futon.parsers.network.UserAgents
 import io.github.landwarderer.futon.parsers.util.*
 import java.util.*
 
-@Broken
 @MangaSourceParser("BRMANGAS", "BrMangas", "pt")
 internal class BrMangas(context: MangaLoaderContext) : PagedMangaParser(context, MangaParserSource.BRMANGAS, 25) {
 

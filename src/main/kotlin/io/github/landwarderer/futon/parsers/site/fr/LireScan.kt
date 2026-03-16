@@ -1,6 +1,5 @@
 package io.github.landwarderer.futon.parsers.site.fr
 
-import io.github.landwarderer.futon.parsers.Broken
 import io.github.landwarderer.futon.parsers.MangaLoaderContext
 import io.github.landwarderer.futon.parsers.MangaSourceParser
 import io.github.landwarderer.futon.parsers.config.ConfigKey
@@ -10,7 +9,6 @@ import io.github.landwarderer.futon.parsers.util.*
 import java.text.SimpleDateFormat
 import java.util.*
 
-@Broken
 @MangaSourceParser("LIRESCAN", "LireScan", "fr")
 internal class LireScan(context: MangaLoaderContext) : PagedMangaParser(context, MangaParserSource.LIRESCAN, 20) {
 

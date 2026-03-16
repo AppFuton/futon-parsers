@@ -50,44 +50,25 @@ jobs:
                     echo "Generated: $(date)" >> "$REPORT_FILE"
                     echo "" >> "$REPORT_FILE"
 
-                    TOTAL_PARSERS=$(find "$PARSER_DIR" -name "*.kt" -type f | wc -l)
-                    echo "📈 Total Parser Files: $TOTAL_PARSERS" >> "$REPORT_FILE"
-                    echo "" >> "$REPORT_FILE"
+                    if [ -d "$PARSER_DIR" ]; then
+                      TOTAL_PARSERS=$(find "$PARSER_DIR" -name "*.kt" -type f | wc -l)
+                      echo "📈 Total Parser Files: $TOTAL_PARSERS" >> "$REPORT_FILE"
+                      echo "" >> "$REPORT_FILE"
 
-                    echo "📁 Parsers by Template:" >> "$REPORT_FILE"
-                    for template_dir in "$PARSER_DIR"/*/; do
-                      template=$(basename "$template_dir")
-                      count=$(find "$template_dir" -name "*.kt" -type f | wc -l)
-                      printf "  %-20s %4d parsers\n" "$template" "$count" >> "$REPORT_FILE"
-                    done | sort -k2 -rn
-                    echo "" >> "$REPORT_FILE"
-
-                    echo "⚠️ Broken Parsers (marked with @Broken):" >> "$REPORT_FILE"
-                    BROKEN_COUNT=$(grep -r "@Broken" "$PARSER_DIR" --include="*.kt" | wc -l)
-                    echo "  Total: $BROKEN_COUNT" >> "$REPORT_FILE"
-                    echo "" >> "$REPORT_FILE"
-
-                    echo "📋 Parser Configuration Analysis:" >> "$REPORT_FILE"
-                    PARSER_COUNT=$(find "$PARSER_DIR" -name "*.kt" -exec grep -l "class.*Parser" {} \; | wc -l)
-                    DOMAIN_CONFIG=$(grep -r "ConfigKey.Domain" "$PARSER_DIR" --include="*.kt" | wc -l)
-                    echo "  Parser classes: $PARSER_COUNT" >> "$REPORT_FILE"
-                    echo "  With domain config: $DOMAIN_CONFIG" >> "$REPORT_FILE"
-                    echo "" >> "$REPORT_FILE"
-
-                    echo "🗣️ Language Distribution:" >> "$REPORT_FILE"
-                    for lang_dir in "$PARSER_DIR"/*/; do
-                      lang=$(basename "$lang_dir")
-                      if [[ ! "$lang" =~ ^(madara|mangareader|zeistmanga|onemanaga|wpcomics|mmrcms|keyoapp|hotcomics|galleryadults|foolslide|onemanga|madtheme|pizzareader|scan|mangabox|manga18|liliana|heancms|cupfox|zmanga|iken|guya|gattsu|fmreader|animebootstrap|heancmsalt|gallery|fuzzydoodle|vmp|likemanga|sinmh|otakusanctuary|nepnep|mangaworld|mangadventure)$ ]]; then
-                        count=$(find "$lang_dir" -name "*.kt" -type f | wc -l)
-                        if [ "$count" -gt 0 ]; then
-                          printf "  %-5s %4d parsers\n" "$lang" "$count" >> "$REPORT_FILE"
-                        fi
-                      fi
-                    done | sort -k2 -rn
+                      echo "📁 Parsers by Template:" >> "$REPORT_FILE"
+                      for template_dir in "$PARSER_DIR"/*/; do
+                        template=$(basename "$template_dir")
+                        count=$(find "$template_dir" -name "*.kt" -type f | wc -l)
+                        printf "  %-20s %4d parsers\n" "$template" "$count" >> "$REPORT_FILE"
+                      done | sort -k2 -rn >> "$REPORT_FILE"
+                      echo "" >> "$REPORT_FILE"
+                    else
+                      echo "❌ Error: Parser directory not found at $PARSER_DIR" >> "$REPORT_FILE"
+                    fi
 
                     cat "$REPORT_FILE"
 
-            -   name: Check Health and Annotate 🛠️
+            -   name: Check Health and Annotate/Restore 🛠️
                 if: ${{ github.event_name == 'schedule' || inputs.include_domains }}
                 env:
                     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -103,52 +84,54 @@ jobs:
                     echo "Generated: $(date)" >> "$DOMAIN_REPORT"
                     echo "" >> "$DOMAIN_REPORT"
 
-                    find "$PARSER_DIR" -name "*.kt" -type f | while read -r file; do
-                      if grep -q "@Broken" "$file"; then continue; fi
+                    if [ -d "$PARSER_DIR" ]; then
+                      find "$PARSER_DIR" -name "*.kt" -type f | while read -r file; do
+                        domain=$(grep -oP 'Domain\("\K[^"]+' "$file" | head -1)
+                        [[ -z "$domain" || "$domain" == "localhost" ]] && continue
 
-                      domain=$(grep -oP 'Domain\("\K[^"]+' "$file" | head -1)
-                      [[ -z "$domain" || "$domain" == "localhost" ]] && continue
+                        url="$domain"
+                        [[ ! "$url" =~ ^https?:// ]] && url="https://$url"
 
-                      url="$domain"
-                      [[ ! "$url" =~ ^https?:// ]] && url="https://$url"
+                        status=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" -L "$url" || echo "000")
 
-                      status=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$TIMEOUT" -L "$url" || echo "000")
-
-                      if [[ "$status" =~ ^5 || "$status" == "000" ]]; then
-                        echo "✗ $domain - $status (Marking Broken)" >> "$DOMAIN_REPORT"
-
-                        # Add Import
-                        if ! grep -q "$IMPORT_STMT" "$file"; then
-                          sed -i "/package /a \\$IMPORT_STMT" "$file"
+                        if [[ "$status" =~ ^5 || "$status" == "000" ]]; then
+                          if ! grep -q "@Broken" "$file"; then
+                            echo "✗ $domain - $status (Marking Broken)" >> "$DOMAIN_REPORT"
+                            if ! grep -q "$IMPORT_STMT" "$file"; then
+                              sed -i "/package /a \\$IMPORT_STMT" "$file"
+                            fi
+                            REASON="Server Error $status observed by health check"
+                            ANNOTATION="@Broken(reason = \"$REASON\", lastCheck = \"$TIMESTAMP\")"
+                            sed -i "/class /i $ANNOTATION" "$file"
+                            echo "MODIFIED=true" >> $GITHUB_ENV
+                          fi
+                        elif [[ "$status" =~ ^2 ]] && grep -q "@Broken" "$file"; then
+                            echo "✓ $domain - $status (Restoring Live Parser)" >> "$DOMAIN_REPORT"
+                            sed -i '/@Broken/d' "$file"
+                            if ! grep -q "@Broken" "$file"; then
+                              sed -i "\|$IMPORT_STMT|d" "$file"
+                            fi
+                            echo "MODIFIED=true" >> $GITHUB_ENV
                         fi
-
-                        # Add Annotation
-                        REASON="Server Error $status observed by health check"
-                        ANNOTATION="@Broken(reason = \"$REASON\", lastCheck = \"$TIMESTAMP\")"
-                        sed -i "/class /i $ANNOTATION" "$file"
-                        echo "MODIFIED=true" >> $GITHUB_ENV
-                      else
-                        echo "✓ $domain - $status OK" >> "$DOMAIN_REPORT"
-                      fi
-                    done
+                      done
+                    fi
 
             -   name: Create Pull Request 🚀
                 if: env.MODIFIED == 'true'
                 uses: peter-evans/create-pull-request@v6
                 with:
                     token: ${{ secrets.GITHUB_TOKEN }}
-                    commit-message: "chore: mark parsers with server errors as broken"
-                    branch: fix/auto-mark-broken-${{ github.run_id }}
-                    title: "🤖 Automated Health Check: Mark Broken Parsers"
-                    body: |
-                        This PR was automatically generated by the weekly health check.
-                        Parsers returning 5xx errors or timeouts have been annotated with `@Broken`.
+                    commit-message: "chore: update parser health status"
+                    branch: fix/auto-parser-health-${{ github.run_id }}
+                    title: "🤖 Automated Health Check: Sync Parser Status"
+                    body: "Marked/Unmarked parsers based on weekly domain availability check."
                     labels: automated-pr, health-check
 
             -   name: Generate combined report 📝
                 if: always()
                 run: |
-                    cat parser_health_report.txt > combined_report.txt
+                    touch combined_report.txt
+                    [ -f parser_health_report.txt ] && cat parser_health_report.txt > combined_report.txt
                     echo "" >> combined_report.txt
                     [ -f domain_health_report.txt ] && cat domain_health_report.txt >> combined_report.txt
 
@@ -168,17 +151,23 @@ jobs:
                 run: |
                     echo "## 🏥 Parser Health Check Complete" >> $GITHUB_STEP_SUMMARY
                     echo "" >> $GITHUB_STEP_SUMMARY
-                    echo "### Summary" >> $GITHUB_STEP_SUMMARY
-                    head -20 parser_health_report.txt >> $GITHUB_STEP_SUMMARY
+
+                    if [ -f parser_health_report.txt ]; then
+                      echo "### Summary" >> $GITHUB_STEP_SUMMARY
+                      head -25 parser_health_report.txt >> $GITHUB_STEP_SUMMARY
+                    else
+                      echo "⚠️ Parser health report was not generated." >> $GITHUB_STEP_SUMMARY
+                    fi
+
                     echo "" >> $GITHUB_STEP_SUMMARY
+
                     if [ -f domain_health_report.txt ]; then
-                      echo "### Domain Status Highlights" >> $GITHUB_STEP_SUMMARY
+                      echo "### Status Changes" >> $GITHUB_STEP_SUMMARY
                       echo "\`\`\`text" >> $GITHUB_STEP_SUMMARY
-                      grep "✗" domain_health_report.txt | head -20 >> $GITHUB_STEP_SUMMARY || echo "No new errors found." >> $GITHUB_STEP_SUMMARY
+                      grep -E "✗|Restoring" domain_health_report.txt | head -20 >> $GITHUB_STEP_SUMMARY || echo "No status changes detected." >> $GITHUB_STEP_SUMMARY
                       echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
                     fi
-                    if [ "${{ env.MODIFIED }}" == "true" ]; then
-                      echo "✅ **A Pull Request has been created to mark broken parsers.**" >> $GITHUB_STEP_SUMMARY
-                    fi
+
+                    [ "${{ env.MODIFIED }}" == "true" ] && echo "✅ **A Pull Request has been created.**" >> $GITHUB_STEP_SUMMARY
                     echo "" >> $GITHUB_STEP_SUMMARY
                     echo "📊 [Full reports available in artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY

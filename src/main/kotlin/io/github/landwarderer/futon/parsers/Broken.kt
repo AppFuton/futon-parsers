@@ -7,10 +7,10 @@ package io.github.landwarderer.futon.parsers
 @Retention(AnnotationRetention.SOURCE)
 internal annotation class Broken(
 
-	/**
+    /**
 	 * Reason why this parser is broken
 	 */
-	val message: String = "",
+	val reason: String = "",
     /**
      * Last time this parser was checked
      */

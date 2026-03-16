@@ -11,4 +11,8 @@ internal annotation class Broken(
 	 * Reason why this parser is broken
 	 */
 	val message: String = "",
+    /**
+     * Last time this parser was checked
+     */
+    val lastCheck: String = "",
 )

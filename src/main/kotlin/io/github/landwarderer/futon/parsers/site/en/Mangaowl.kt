@@ -2,7 +2,6 @@ package io.github.landwarderer.futon.parsers.site.en
 
 import kotlinx.coroutines.coroutineScope
 import org.jsoup.nodes.Document
-import io.github.landwarderer.futon.parsers.Broken
 import io.github.landwarderer.futon.parsers.MangaLoaderContext
 import io.github.landwarderer.futon.parsers.MangaSourceParser
 import io.github.landwarderer.futon.parsers.config.ConfigKey
@@ -14,7 +13,6 @@ import io.github.landwarderer.futon.parsers.util.json.mapJSON
 import java.text.SimpleDateFormat
 import java.util.*
 
-@Broken
 @MangaSourceParser("MANGAOWL", "MangaOwl.to", "en")
 internal class Mangaowl(context: MangaLoaderContext) :
 	PagedMangaParser(context, MangaParserSource.MANGAOWL, pageSize = 24) {

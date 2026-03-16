@@ -1,6 +1,5 @@
 package io.github.landwarderer.futon.parsers.site.es
 
-import io.github.landwarderer.futon.parsers.Broken
 import io.github.landwarderer.futon.parsers.MangaLoaderContext
 import io.github.landwarderer.futon.parsers.MangaSourceParser
 import io.github.landwarderer.futon.parsers.config.ConfigKey
@@ -9,7 +8,6 @@ import io.github.landwarderer.futon.parsers.model.*
 import io.github.landwarderer.futon.parsers.util.*
 import java.util.*
 
-@Broken("Redirect to DragonTranslation.org source")
 @MangaSourceParser("DRAGONTRANSLATION", "Dragon Translation", "es")
 internal class DragonTranslationParser(context: MangaLoaderContext) :
     PagedMangaParser(context, MangaParserSource.DRAGONTRANSLATION, 30) {

@@ -3,7 +3,6 @@ package io.github.landwarderer.futon.parsers.site.be
 import androidx.collection.ArraySet
 import org.json.JSONArray
 import org.json.JSONObject
-import io.github.landwarderer.futon.parsers.Broken
 import io.github.landwarderer.futon.parsers.MangaLoaderContext
 import io.github.landwarderer.futon.parsers.MangaSourceParser
 import io.github.landwarderer.futon.parsers.config.ConfigKey
@@ -19,7 +18,6 @@ import io.github.landwarderer.futon.parsers.util.nullIfEmpty
 import io.github.landwarderer.futon.parsers.util.toAbsoluteUrl
 import java.util.*
 
-@Broken
 @MangaSourceParser("ANIBEL", "Anibel", "be")
 internal class AnibelParser(context: MangaLoaderContext) : AbstractMangaParser(context, MangaParserSource.ANIBEL) {
 

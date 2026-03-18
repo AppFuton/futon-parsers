@@ -1,4 +1,5 @@
 package io.github.landwarderer.futon.parsers.site.all
+import io.github.landwarderer.futon.parsers.Broken
 
 import androidx.collection.MutableIntObjectMap
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -22,6 +23,7 @@ import javax.crypto.spec.SecretKeySpec
 import kotlin.math.min
 
 @MangaSourceParser("MANGAREADERTO", "MangaReader.To")
+@Broken(reason = "Server Error 502 observed by health check", lastCheck = "2026-03-16T17:43:37Z")
 internal class MangaReaderToParser(context: MangaLoaderContext) :
 	PagedMangaParser(context, MangaParserSource.MANGAREADERTO, 16),
 	Interceptor, MangaParserAuthProvider {

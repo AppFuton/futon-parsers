@@ -2,7 +2,6 @@ package io.github.landwarderer.futon.parsers.site.fr
 
 import org.json.JSONObject
 import org.jsoup.nodes.Document
-import io.github.landwarderer.futon.parsers.Broken
 import io.github.landwarderer.futon.parsers.MangaLoaderContext
 import io.github.landwarderer.futon.parsers.MangaSourceParser
 import io.github.landwarderer.futon.parsers.config.ConfigKey
@@ -33,7 +32,6 @@ import java.util.EnumSet
 import java.util.Locale
 import java.util.TimeZone
 
-@Broken("The source to change structure")
 @MangaSourceParser("POSEIDONSCANS", "Poseidon Scans", "fr")
 internal class PoseidonScans(context: MangaLoaderContext) :
 	SinglePageMangaParser(context, MangaParserSource.POSEIDONSCANS) {

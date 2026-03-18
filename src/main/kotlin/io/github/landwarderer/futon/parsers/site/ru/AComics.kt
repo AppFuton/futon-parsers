@@ -10,10 +10,8 @@ import io.github.landwarderer.futon.parsers.config.ConfigKey
 import io.github.landwarderer.futon.parsers.core.PagedMangaParser
 import io.github.landwarderer.futon.parsers.model.*
 import io.github.landwarderer.futon.parsers.util.*
-import io.github.landwarderer.futon.parsers.Broken
 import java.util.*
 
-@Broken
 @MangaSourceParser("ACOMICS", "AComics", "ru", ContentType.COMICS)
 internal class AComics(context: MangaLoaderContext) :
     PagedMangaParser(context, MangaParserSource.ACOMICS, pageSize = 10) {

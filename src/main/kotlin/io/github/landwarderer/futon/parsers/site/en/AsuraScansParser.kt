@@ -20,12 +20,13 @@ import java.util.*
 internal class AsuraScansParser(context: MangaLoaderContext) :
 	PagedMangaParser(context, MangaParserSource.ASURASCANS, pageSize = 30) {
 
-	override val configKeyDomain = ConfigKey.Domain("asuracomic.net")
+	override val configKeyDomain = ConfigKey.Domain(
+		"asurascans.com",
+		"asuracomic.net",
+	)
 
-	override fun onCreateConfig(keys: MutableCollection<ConfigKey<*>>) {
-		super.onCreateConfig(keys)
-		keys.add(userAgentKey)
-	}
+	private val domainCandidates = listOf("asurascans.com", "asuracomic.net")
+	private val listPageCandidates = listOf("/series", "/browse", "/comics")
 
 	override val availableSortOrders: Set<SortOrder> = EnumSet.of(
 		SortOrder.RATING,
@@ -59,10 +60,8 @@ internal class AsuraScansParser(context: MangaLoaderContext) :
 	)
 
 	override suspend fun getListPage(page: Int, order: SortOrder, filter: MangaListFilter): List<Manga> {
-		val url = buildString {
-			append("https://")
-			append(domain)
-			append("/series?page=")
+		val params = buildString {
+			append("?page=")
 			append(page)
 
 			filter.query?.let {
@@ -111,7 +110,14 @@ internal class AsuraScansParser(context: MangaLoaderContext) :
 				else -> append("update")
 			}
 		}
-		val doc = webClient.httpGet(url).parseHtml()
+
+		val doc = domainCandidates.asSequence().flatMap { host ->
+			listPageCandidates.asSequence().map { path -> "https://$host$path$params" }
+		}.mapNotNull { url ->
+			val response = runCatching { webClient.httpGet(url) }.getOrNull()
+			if (response?.isSuccessful() == true) response.parseHtml() else null
+		}.firstOrNull() ?: return emptyList()
+
 		return doc.select("div.grid > a[href]").map { a ->
 			val href = "/" + a.attrAsRelativeUrl("href")
 			Manga(
@@ -144,9 +150,32 @@ internal class AsuraScansParser(context: MangaLoaderContext) :
 	private suspend fun getOrCreateTagMap(): Map<String, MangaTag> = mutex.withLock {
 		tagCache?.let { return@withLock it }
 		val tagMap = ArrayMap<String, MangaTag>()
-		val json =
-			webClient.httpGet("https://gg.$domain/api/series/filters").parseJson().getJSONArray("genres")
-				.asTypedList<JSONObject>()
+		val json = listOf(
+			"https://gg.$domain/api/series/filters",
+			"https://$domain/api/series/filters",
+			"https://$domain/api/filters",
+			"https://$domain/api/genres",
+		).mapNotNull { url ->
+			runCatching { webClient.httpGet(url) }.getOrNull()?.takeIf { it.isSuccessful() }?.parseJson()
+		}.firstOrNull()
+			?.optJSONArray("genres")
+			?.asTypedList<JSONObject>()
+			.orEmpty()
+
+		if (json.isEmpty()) {
+			// fallback JSON değilsen HTML / list route gir
+			for (host in domainCandidates) {
+				val doc = runCatching { webClient.httpGet("https://$host/browse") }.getOrNull()?.takeIf { it.isSuccessful() }?.parseHtml()
+				if (doc != null) {
+					doc.select("button[data-genre], a[data-genre], option[data-genre]").forEach { e ->
+						val name = e.attr("data-genre").ifBlank { e.text().trim() }
+						if (name.isNotEmpty()) tagMap[name] = MangaTag(key = name, title = name, source = source)
+					}
+					if (tagMap.isNotEmpty()) break
+				}
+			}
+		}
+
 		for (el in json) {
 			if (el.getString("name").isEmpty()) continue
 			tagMap[el.getString("name")] = MangaTag(
@@ -156,8 +185,7 @@ internal class AsuraScansParser(context: MangaLoaderContext) :
 			)
 		}
 		tagCache = tagMap
-		tagMap
-	}
+		tagMap	}
 
 	private val regexDate = """(\d+)(st|nd|rd|th)""".toRegex()
 

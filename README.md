@@ -1,3 +1,7 @@
+> [!NOTE]
+> Futon has switched to using Kotatsu Redo parsers. This parsers repository will not be updated for now.
+
+
 # Futon parsers
 
 This library provides a collection of manga parsers for convenient access manga available on the web. It can be used in
